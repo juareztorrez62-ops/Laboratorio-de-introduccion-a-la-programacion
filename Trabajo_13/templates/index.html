@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CajaWalmart POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="logo">
+        <span class="logo-spark">★</span> CajaWalmart
+    </div>
+    <nav class="topnav">
+        <a href="/" class="nav-link active">🧾 Caja</a>
+        <a href="/catalogo" class="nav-link">📦 Catálogo</a>
+    </nav>
+</header>
+
+<main class="container">
+
+    <!-- Panel izquierdo: escaneo + tabla -->
+    <section class="left-panel">
+
+        <div class="card scan-box">
+            <h3 class="card-title">Escanear producto</h3>
+            <div class="scan-actions">
+                <input id="codigoManual" type="text" placeholder="Código manual...">
+                <button id="btnManual" class="btn btn-secondary">Agregar</button>
+                <button id="abrirScanner" class="btn btn-primary">📷 Escáner</button>
+            </div>
+            <p id="mensajeError" class="msg-error" style="display:none;"></p>
+        </div>
+
+        <div class="card table-box">
+            <h3 class="card-title">Productos en ticket</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Código</th>
+                        <th>Precio</th>
+                        <th>Cant.</th>
+                        <th>Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tablaProductos"></tbody>
+            </table>
+            <p id="tablaVacia" class="tabla-vacia">Sin productos escaneados aún.</p>
+        </div>
+
+    </section>
+
+    <!-- Panel derecho: resumen -->
+    <aside class="right-panel">
+        <div class="card summary">
+            <h3 class="card-title">Resumen</h3>
+            <div class="summary-row">
+                <span>Artículos</span>
+                <strong id="totalArticulos">0</strong>
+            </div>
+            <div class="summary-row">
+                <span>Subtotal</span>
+                <strong id="subtotalVal">$0.00</strong>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-total">
+                <span>TOTAL</span>
+                <strong id="totalVal">$0.00</strong>
+            </div>
+            <button class="btn btn-danger btn-block" onclick="limpiarLista()">🗑 Limpiar ticket</button>
+        </div>
+    </aside>
+
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

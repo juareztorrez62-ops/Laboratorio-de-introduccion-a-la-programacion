@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escáner</title>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+        background: #0d1b2a;
+        color: white;
+        text-align: center;
+        font-family: 'Barlow', sans-serif;
+        padding: 16px;
+    }
+
+    h2 {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 22px;
+        letter-spacing: 1px;
+        color: #ffc220;
+        margin-bottom: 14px;
+    }
+
+    #scanner-box {
+        width: 300px;
+        height: 220px;
+        margin: auto;
+        position: relative;
+        border: 3px solid #0071ce;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0,113,206,0.5);
+    }
+
+    video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    #overlay {
+        position: absolute;
+        width: 180px;
+        height: 130px;
+        border: 2px solid #ffc220;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 4px;
+    }
+
+    /* esquinas animadas */
+    #overlay::before, #overlay::after {
+        content: '';
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-color: #ffc220;
+        border-style: solid;
+    }
+    #overlay::before { top: -3px; left: -3px; border-width: 3px 0 0 3px; }
+    #overlay::after  { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; }
+
+    .btn-row {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: opacity .2s;
+    }
+    button:hover { opacity: 0.85; }
+
+    #btnIniciar { background: #0071ce; color: white; }
+    #btnDetener { background: #444; color: white; }
+
+    #estado {
+        margin-top: 14px;
+        font-size: 13px;
+        min-height: 20px;
+        color: #aaa;
+    }
+
+    #ultimoEscaneado {
+        margin-top: 10px;
+        background: #1a2e40;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        display: none;
+    }
+
+    #ultimoEscaneado .etiqueta { color: #888; font-size: 11px; margin-bottom: 2px; }
+    #ultimoEscaneado .nombre   { font-weight: 600; color: #ffc220; font-size: 15px; }
+    #ultimoEscaneado .precio   { color: #7ec8e3; margin-top: 2px; }
+    #ultimoEscaneado.error-box { border: 1px solid #e55; }
+    #ultimoEscaneado.error-box .nombre { color: #ff7070; }
+</style>
+</head>
+<body>
+
+<h2>📷 Escáner de productos</h2>
+
+<div id="scanner-box">
+    <video id="video"></video>
+    <div id="overlay"></div>
+</div>
+
+<div class="btn-row">
+    <button id="btnIniciar" onclick="iniciar()">▶ Iniciar</button>
+    <button id="btnDetener" onclick="detener()">⏹ Detener</button>
+</div>
+
+<p id="estado">Presiona Iniciar para activar la cámara.</p>
+
+<div id="ultimoEscaneado">
+    <div class="etiqueta">Último escaneado</div>
+    <div class="nombre" id="escNombre">—</div>
+    <div class="precio" id="escPrecio"></div>
+</div>
+
+<audio id="beep" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+<script>
+let codeReader;
+let scanning = false;
+let ultimoCodigo = null;
+let bloqueo = false;
+
+function iniciar() {
+    if (scanning) return;
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    scanning = true;
+    document.getElementById("estado").textContent = "Cámara activa. Apunta al código...";
+
+    codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+        if (result) {
+            let codigo = result.text;
+            if (bloqueo || codigo === ultimoCodigo) return;
+
+            bloqueo = true;
+            ultimoCodigo = codigo;
+
+            fetch('/guardar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({codigo})
+            })
+            .then(r => r.json())
+            .then(data => {
+                const box = document.getElementById("ultimoEscaneado");
+                box.style.display = "block";
+
+                if (data.ok) {
+                    document.getElementById("beep").play();
+                    // Obtener info del ticket para mostrar nombre y precio
+                    fetch('/productos')
+                        .then(r => r.json())
+                        .then(ticket => {
+                            const prod = ticket.find(p => p.codigo === codigo);
+                            if (prod) {
+                                box.classList.remove("error-box");
+                                document.getElementById("escNombre").textContent = prod.nombre;
+                                document.getElementById("escPrecio").textContent = `$${prod.precio.toFixed(2)}`;
+                                document.getElementById("estado").textContent = "✅ Producto agregado al ticket.";
+                            }
+                        });
+                } else {
+                    box.classList.add("error-box");
+                    document.getElementById("escNombre").textContent = "⚠ " + (data.error || "No encontrado");
+                    document.getElementById("escPrecio").textContent = `Código: ${codigo}`;
+                    document.getElementById("estado").textContent = "Producto no está en el catálogo.";
+                }
+            });
+
+            setTimeout(() => {
+                bloqueo = false;
+                ultimoCodigo = null;
+            }, 1500);
+        }
+    });
+}
+
+function detener() {
+    if (codeReader) {
+        codeReader.reset();
+        scanning = false;
+        document.getElementById("estado").textContent = "Escáner detenido.";
+    }
+}
+</script>
+
+</body>
+</html>
